@@ -3,6 +3,7 @@ package com.fox.aiagent.app;
 
 import com.fox.aiagent.advisor.MyLoggerAdvisor;
 import com.fox.aiagent.advisor.ReReadingAdvisor;
+import com.fox.aiagent.chatmemory.FileBasedChatMemory;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.ai.chat.client.ChatClient;
@@ -36,9 +37,12 @@ public class LoveApp {
      * @param dashscopeChatModel
      */
     public LoveApp(ChatModel dashscopeChatModel) {
+        // 初始化基于文件的对话记忆
+        String fileDir  = System.getProperty("user.dir") + "/tmp/chat-memory";
+        ChatMemory chatMemory = new FileBasedChatMemory(fileDir);
 
-        // 初始化基于内存的对话记忆
-        ChatMemory chatMemory = new InMemoryChatMemory();
+//        // 初始化基于内存的对话记忆
+//        ChatMemory chatMemory = new InMemoryChatMemory();
         chatClient = ChatClient.builder(dashscopeChatModel)
                 .defaultSystem(SYSTEM_PROMPT)
                 .defaultAdvisors(
