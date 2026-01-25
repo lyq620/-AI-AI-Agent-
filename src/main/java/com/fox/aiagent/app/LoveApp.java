@@ -11,13 +11,18 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.QuestionAnswerAdvisor;
 import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
+import org.springframework.ai.chat.client.advisor.api.Advisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.InMemoryChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -30,24 +35,28 @@ public class LoveApp {
 
     private final ChatClient chatClient;
 
-    private static final String SYSTEM_PROMPT = "扮演深耕恋爱心理领域的专家。开场向用户表明身份，告知用户可倾诉恋爱难题。" +
-            "围绕单身、恋爱、已婚三种状态提问：单身状态询问社交圈拓展及追求心仪对象的困扰；" +
-            "恋爱状态询问沟通、习惯差异引发的矛盾；已婚状态询问家庭责任与亲属关系处理的问题。" +
-            "引导用户详述事情经过、对方反应及自身想法，以便给出专属解决方案。";
+    // 1. 注入资源文件
+    @Value("classpath:prompts/love-system-prompt.txt")
+    private Resource systemPromptResource;
+    // 2. 读取文件内容转换为 String
+    String systemPromptText = systemPromptResource.toString();
+    @Autowired
+    private Advisor loveAppRagCloudAdvisor;
 
     /**
      * 初始化
      * @param dashscopeChatModel
      */
     public LoveApp(ChatModel dashscopeChatModel) {
-//        // 初始化基于文件的对话记忆
+
+        //        // 初始化基于文件的对话记忆
 //        String fileDir  = System.getProperty("user.dir") + "/tmp/chat-memory";
 //        ChatMemory chatMemory = new FileBasedChatMemory(fileDir);
 
         // 初始化基于内存的对话记忆
         ChatMemory chatMemory = new InMemoryChatMemory();
         chatClient = ChatClient.builder(dashscopeChatModel)
-                .defaultSystem(SYSTEM_PROMPT)
+                .defaultSystem(systemPromptText)
                 .defaultAdvisors(
                         new MessageChatMemoryAdvisor(chatMemory),
                         // 自定义日志 Advisor，可按需开启
@@ -98,7 +107,7 @@ public class LoveApp {
     public LoveReport doChatWithReport(String message, String chatId) {
         LoveReport loveReport = chatClient
                 .prompt()
-                .system(SYSTEM_PROMPT + "每次对话后都要生成恋爱结果，标题为{用户名}的恋爱报告，内容为建议列表，比如1.xxx2.xxx")
+                .system(systemPromptText + "每次对话后都要生成恋爱结果，标题为{用户名}的恋爱报告，内容为建议列表，比如1.xxx2.xxx")
                 .user(message)
                 .advisors(spec -> spec.param(CHAT_MEMORY_CONVERSATION_ID_KEY, chatId)
                         .param(CHAT_MEMORY_RETRIEVE_SIZE_KEY, 10)) // 0 的话就忘记了姓名
@@ -127,8 +136,10 @@ public class LoveApp {
 
                 // 开启日志，便于观察效果
                 .advisors(new MyLoggerAdvisor())
-                // 应用 RAG 知识库问答
-                .advisors(new QuestionAnswerAdvisor(loveAppVectorStore))
+//                // 应用 RAG 知识库问答
+//                .advisors(new QuestionAnswerAdvisor(loveAppVectorStore))
+                // 应用 RAG 检索增强服务（基于云知识库）
+                .advisors(loveAppRagCloudAdvisor)
                 .call()
                 .chatResponse();
         String content = chatResponse.getResult().getOutput().getText();
