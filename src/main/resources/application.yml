@@ -7,11 +7,29 @@ spring:
       chat:
         options:
           model: qwen-plus
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.JdbcTemplateAutoConfiguration
 #    ollama:
 #      enabled: false
 #      base-url: http://localhost:11434
 #      chat:
 #      model: gemma3:1b
+#    vectorstore:
+#      pgvector:
+#        enabled: false
+#        index-type: HNSW
+#        #dimensions: 1536
+#        distance-type: COSINE_DISTANCE
+#        max-document-batch-size: 10000
+
+#  datasource:
+#    url: jdbc:postgresql://rm-cn-ioy4mn6ls0004k9o.rwlb.rds.aliyuncs.com/ai_agent
+#    username: my_user
+#    password:
 
 server:
   port: 8123
