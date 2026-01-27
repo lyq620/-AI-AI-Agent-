@@ -52,7 +52,7 @@ import org.springframework.context.annotation.Configuration;
 
 import java.util.List;
 
-@Configuration
+//@Configuration
 public class LoveAppVectorStoreConfig {
 
     @Resource
@@ -112,17 +112,17 @@ public class LoveAppVectorStoreConfig {
         System.out.println("   CSV 文档: " + csvCount + " 个");
         System.out.println("   总计: " + documents.size() + " 个文档");
 
-        // 显示一些示例
-        if (excelCount > 0) {
-            System.out.println("\n📋 Excel 数据示例:");
-            documents.stream()
-                    .filter(d -> "excel".equals(d.getMetadata().get("source_type")))
-                    .limit(1)
-                    .forEach(doc -> {
-                        System.out.println("   文件: " + doc.getMetadata().get("filename"));
-                        System.out.println("   内容预览: " +
-                                doc.getText().substring(0, Math.min(100, doc.getText().length())) + "...");
-                    });
-        }
+//        // 显示一些示例
+//        if (excelCount > 0) {
+//            System.out.println("\n📋 Excel 数据示例:");
+//            documents.stream()
+//                    .filter(d -> "excel".equals(d.getMetadata().get("source_type")))
+//                    .limit(1)
+//                    .forEach(doc -> {
+//                        System.out.println("   文件: " + doc.getMetadata().get("filename"));
+//                        System.out.println("   内容预览: " +
+//                                doc.getText().substring(0, Math.min(100, doc.getText().length())) + "...");
+//                    });
+//        }
     }
 }
