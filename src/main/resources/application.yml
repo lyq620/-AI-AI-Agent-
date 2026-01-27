@@ -6,7 +6,7 @@ spring:
       api-key: ${API-KEY}
       chat:
         options:
-          model: qwen-plus
+          model: qwen3-coder-plus
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
@@ -25,6 +25,15 @@ spring:
 #        #dimensions: 1536
 #        distance-type: COSINE_DISTANCE
 #        max-document-batch-size: 10000
+    mcp:
+      client:
+#        stdio:
+#          servers-configuration: classpath:mcp-servers.json
+        sse:
+          connections:
+            server1:
+              url: http://localhost:8127
+
 
 #  datasource:
 #    url: jdbc:postgresql://rm-cn-ioy4mn6ls0004k9o.rwlb.rds.aliyuncs.com/ai_agent
@@ -52,6 +61,9 @@ knife4j:
   enable: true
   setting:
     language: zh_cn
+# searchAPI
+search-api:
+  api-key: 9fF19y4uPvHKQLLXWh3WL7Yn
 logging:
   level:
     org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor: DEBUG
