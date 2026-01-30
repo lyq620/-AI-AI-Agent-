@@ -41,8 +41,8 @@ public class MyLoggerAdvisor implements CallAroundAdvisor, StreamAroundAdvisor {
 	}
 
 	public Flux<AdvisedResponse> aroundStream(AdvisedRequest advisedRequest, StreamAroundAdvisorChain chain) {
-advisedRequest = this.before(advisedRequest);
-Flux<AdvisedResponse> advisedResponses = chain.nextAroundStream(advisedRequest);
+		advisedRequest = this.before(advisedRequest);
+		Flux<AdvisedResponse> advisedResponses = chain.nextAroundStream(advisedRequest);
 		return (new MessageAggregator()).aggregateAdvisedResponse(advisedResponses, this::observeAfter);
 	}
-			}
+}

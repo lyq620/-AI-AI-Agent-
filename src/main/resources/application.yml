@@ -25,10 +25,11 @@ spring:
 #        #dimensions: 1536
 #        distance-type: COSINE_DISTANCE
 #        max-document-batch-size: 10000
+
     mcp:
       client:
-#        stdio:
-#          servers-configuration: classpath:mcp-servers.json
+        stdio:
+          servers-configuration: "classpath:mcp-servers.json"
         sse:
           connections:
             server1:
@@ -66,4 +67,4 @@ search-api:
   api-key: 9fF19y4uPvHKQLLXWh3WL7Yn
 logging:
   level:
-    org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor: DEBUG
+    org.springframework.ai.mcp: DEBUG
