@@ -2,10 +2,13 @@ package com.fox.aiagent.app;
 
 
 import com.fox.aiagent.advisor.MyLoggerAdvisor;
+import com.fox.aiagent.advisor.ProhibitedWordAdvisor;
 import com.fox.aiagent.advisor.ReReadingAdvisor;
 import com.fox.aiagent.chatmemory.FileBasedChatMemory;
 import com.fox.aiagent.rag.LoveAppRagCustomAdvisorFactory;
 import com.fox.aiagent.rag.QueryRewriter;
+import io.modelcontextprotocol.client.McpAsyncClient;
+import io.modelcontextprotocol.client.McpSyncClient;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 
@@ -18,6 +21,7 @@ import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.InMemoryChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.mcp.SyncMcpToolCallbackProvider;
 import org.springframework.ai.model.function.FunctionCallback;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.ToolCallbackProvider;
@@ -90,9 +94,11 @@ public class LoveApp {
         chatClient = ChatClient.builder(dashscopeChatModel)
                 .defaultSystem(SYSTEM_PROMPT)
                 .defaultAdvisors(
-                        new MessageChatMemoryAdvisor(chatMemory)
+                        new MessageChatMemoryAdvisor(chatMemory),
                         // 自定义日志 Advisor，可按需开启
-//                        new MyLoggerAdvisor()
+                        new MyLoggerAdvisor(),
+                        // 违禁词检测 - 从文件读取违禁词
+                        new ProhibitedWordAdvisor()
 //                        // 自定义推理增强 Advisor，可按需开启
 //                        new ReReadingAdvisor() // 弊端：用户消息输入两遍，token翻倍
                 )
@@ -207,32 +213,32 @@ public class LoveApp {
         return content;
     }
 
-    // AI 调用工具能力
-    @Resource
-    private ToolCallback[] allTools;
-
-    /**
-     * AI 恋爱报告功能（支持调用工具）
-     *
-     * @param message
-     * @param chatId
-     * @return
-     */
-    public String doChatWithTools(String message, String chatId) {
-        ChatResponse response = chatClient
-                .prompt()
-                .user(message)
-                .advisors(spec -> spec.param(CHAT_MEMORY_CONVERSATION_ID_KEY, chatId)
-                        .param(CHAT_MEMORY_RETRIEVE_SIZE_KEY, 10))
-
-                .advisors(new MyLoggerAdvisor())
-                .tools(allTools)
-                .call()
-                .chatResponse();
-        String content = response.getResult().getOutput().getText();
-        log.info("content: {}", content);
-        return content;
-    }
+//    // AI 调用工具能力
+//    @Resource
+//    private ToolCallback[] allTools;
+//
+//    /**
+//     * AI 恋爱报告功能（支持调用工具）
+//     *
+//     * @param message
+//     * @param chatId
+//     * @return
+//     */
+//    public String doChatWithTools(String message, String chatId) {
+//        ChatResponse response = chatClient
+//                .prompt()
+//                .user(message)
+//                .advisors(spec -> spec.param(CHAT_MEMORY_CONVERSATION_ID_KEY, chatId)
+//                        .param(CHAT_MEMORY_RETRIEVE_SIZE_KEY, 10))
+//
+//                .advisors(new MyLoggerAdvisor())
+//                .tools(allTools)
+//                .call()
+//                .chatResponse();
+//        String content = response.getResult().getOutput().getText();
+//        log.info("content: {}", content);
+//        return content;
+//    }
 
     // AI 调用 MCP 服务
     @Resource
@@ -260,5 +266,6 @@ public class LoveApp {
         log.info("content: {}", content);
         return content;
     }
+
 
 }

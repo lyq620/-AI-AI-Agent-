@@ -70,25 +70,25 @@ class LoveAppTest {
 //        testMessage("保存我的恋爱档案为文件");
 
         // 测试 PDF 生成
-        testMessage("帮我生成一份在上海的‘七夕约会计划’PDF，希望有安静深度聊天空间，包含餐厅预订、活动流程和礼物清单");
+//        testMessage("帮我生成一份在上海的‘七夕约会计划’PDF，希望有安静深度聊天空间，包含餐厅预订、活动流程和礼物清单");
     }
 
-    private void testMessage(String message) {
-        String chatId = UUID.randomUUID().toString();
-        String answer = loveApp.doChatWithTools(message, chatId);
-        Assertions.assertNotNull(answer);
-    }
+//    private void testMessage(String message) {
+//        String chatId = UUID.randomUUID().toString();
+//        String answer = loveApp.doChatWithTools(message, chatId);
+//        Assertions.assertNotNull(answer);
+//    }
 
     @Test
     void doChatWithMcp() {
         String chatId = UUID.randomUUID().toString();
-//        // 测试地图 MCP
+        // 测试地图 MCP
 //        String message = "我的另一半居住在太仓市西工大，请帮我找到 5 公里内合适的约会地点";
 //        String answer =  loveApp.doChatWithMcp(message, chatId);
 //        Assertions.assertNotNull(answer);
 
         // 测试图片搜索 MCP
-        String message = "请搜索几张浪漫晚餐的情侣约会的照片，并返回图片链接";
+        String message = "请帮我找几张哄对象开心的照片";
         String answer =  loveApp.doChatWithMcp(message, chatId);
         Assertions.assertNotNull(answer);
     }

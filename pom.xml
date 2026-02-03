@@ -131,6 +131,7 @@
             <version>1.0.0-M6</version>
         </dependency>
 
+
         <dependency>
             <groupId>cn.hutool</groupId>
             <artifactId>hutool-all</artifactId>
