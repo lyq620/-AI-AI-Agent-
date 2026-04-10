@@ -39,4 +39,29 @@ public interface Skill {
     default boolean isAvailable() {
         return true;
     }
+
+    /**
+     * 校验参数是否合法
+     * 在执行前调用，如果参数不合法抛出 SkillValidationException
+     *
+     * @param parameters 参数映射
+     * @throws SkillValidationException 参数不合法时抛出
+     */
+    default void validate(Map<String, Object> parameters) throws SkillValidationException {
+        // 默认实现：校验所有标记为"必需"的参数
+        Map<String, String> paramDefs = getParameterDefinitions();
+        for (Map.Entry<String, String> entry : paramDefs.entrySet()) {
+            String paramName = entry.getKey();
+            String description = entry.getValue();
+
+            // 如果参数标记为"必需"，则校验不能为空
+            if (description.contains("必需") || description.contains("必须")) {
+                Object value = parameters.get(paramName);
+                if (value == null || (value instanceof String && ((String) value).trim().isEmpty())) {
+                    throw new SkillValidationException(getName(), paramName, value,
+                        "Required parameter is missing or empty");
+                }
+            }
+        }
+    }
 }

@@ -7,6 +7,7 @@ import com.fox.aiagent.advisor.ReReadingAdvisor;
 import com.fox.aiagent.chatmemory.FileBasedChatMemory;
 import com.fox.aiagent.rag.LoveAppRagCustomAdvisorFactory;
 import com.fox.aiagent.rag.QueryRewriter;
+import com.fox.aiagent.skills.SkillResult;
 import io.modelcontextprotocol.client.McpAsyncClient;
 import io.modelcontextprotocol.client.McpSyncClient;
 import jakarta.annotation.Resource;
@@ -17,6 +18,8 @@ import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.QuestionAnswerAdvisor;
 import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
 import org.springframework.ai.chat.client.advisor.api.Advisor;
+import static org.springframework.ai.chat.client.advisor.AbstractChatMemoryAdvisor.CHAT_MEMORY_CONVERSATION_ID_KEY;
+import static org.springframework.ai.chat.client.advisor.AbstractChatMemoryAdvisor.CHAT_MEMORY_RETRIEVE_SIZE_KEY;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.InMemoryChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
@@ -27,7 +30,6 @@ import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Autowired;
-
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
@@ -38,11 +40,16 @@ import java.nio.charset.StandardCharsets;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.springframework.ai.chat.client.advisor.AbstractChatMemoryAdvisor.CHAT_MEMORY_CONVERSATION_ID_KEY;
-import static org.springframework.ai.chat.client.advisor.AbstractChatMemoryAdvisor.CHAT_MEMORY_RETRIEVE_SIZE_KEY;
+import com.fox.aiagent.skills.Skill;
+import com.fox.aiagent.skills.SkillIntentClassifier;
+import com.fox.aiagent.skills.SkillManager;
+import com.fox.aiagent.skills.SkillToolCallbackProvider;
 
+// $env:JAVA_HOME = "D://tool//JDK//JDK21"
+// $env:Path = "$env:JAVA_HOME\bin;" + $env:Path
 @Component
 @Slf4j
 public class LoveApp {
@@ -79,11 +86,19 @@ public class LoveApp {
     @Resource
     private QueryRewriter queryRewriter;
 
+    // Skills 系统
+    private final SkillManager skillManager;
+    private final SkillToolCallbackProvider skillToolCallbackProvider;
+
     /**
      * 初始化
      * @param dashscopeChatModel
+     * @param skillManager 技能管理器
+     * @param skillToolCallbackProvider 技能工具回调提供者
      */
-    public LoveApp(ChatModel dashscopeChatModel) {
+    public LoveApp(ChatModel dashscopeChatModel,
+                  SkillManager skillManager,
+                  SkillToolCallbackProvider skillToolCallbackProvider) {
 
          // 初始化基于文件的对话记忆
 //        String fileDir  = System.getProperty("user.dir") + "/tmp/chat-memory";
@@ -91,6 +106,8 @@ public class LoveApp {
 
         // 初始化基于内存的对话记忆
         ChatMemory chatMemory = new InMemoryChatMemory();
+        this.skillManager = skillManager;
+        this.skillToolCallbackProvider = skillToolCallbackProvider;
         chatClient = ChatClient.builder(dashscopeChatModel)
                 .defaultSystem(SYSTEM_PROMPT)
                 .defaultAdvisors(
@@ -175,7 +192,7 @@ public class LoveApp {
     // AI 恋爱知识库问答
 //    @Resource
 //    private VectorStore loveAppVectorStore;
-
+//
 //    @Resource
 //    private VectorStore pgVectorVectorStore;
 
@@ -201,7 +218,7 @@ public class LoveApp {
                 //.advisors(new QuestionAnswerAdvisor(loveAppVectorStore))
                 // 应用 RAG 检索增强服务（基于云知识库）
 //                .advisors(loveAppRagCloudAdvisor)
-//                // 应用 RAG 检索增强服务（基于 PgVector 向量存储）
+                // 应用 RAG 检索增强服务（基于 PgVector 向量存储）
 //                .advisors(new QuestionAnswerAdvisor(pgVectorVectorStore))
 //                .advisors(LoveAppRagCustomAdvisorFactory.createLoveAppRagCustomAdvisor(
 //                        loveAppVectorStore, "已婚"
@@ -268,4 +285,96 @@ public class LoveApp {
     }
 
 
+    /**
+     * 使用 Skills 系统执行技能
+     *
+     * @param skillName 技能名称
+     * @param parameters 参数
+     * @param chatId 对话ID
+     * @return 执行结果
+     */
+    public String executeSkill(String skillName, Map<String, Object> parameters, String chatId) {
+        try {
+            SkillResult<String> result = skillManager.executeSkill(skillName, parameters);
+            if (result.isSuccess()) {
+                return result.getData();
+            } else {
+                return "技能执行失败: " + result.getErrorMessage();
+            }
+        } catch (Exception e) {
+            log.error("Failed to execute skill {}: {}", skillName, e.getMessage());
+            return "抱歉，执行技能时发生错误: " + e.getMessage();
+        }
+    }
+
+    /**
+     * 获取所有可用技能
+     *
+     * @return 技能列表
+     */
+    public Map<String, Skill> getAllSkills() {
+        return skillManager.getAllSkills();
+    }
+
+    /**
+     * 检查技能是否存在
+     *
+     * @param skillName 技能名称
+     * @return 是否存在
+     */
+    public boolean hasSkill(String skillName) {
+        return skillManager.hasSkill(skillName);
+    }
+
+    static {
+        System.setProperty("CHAT_MEMORY_CONVERSATION_ID_KEY", "conversation_id");
+        System.setProperty("CHAT_MEMORY_RETRIEVE_SIZE_KEY", "retrieve_size");
+    }
+
+    // ======================== 【关键：让AI调用技能】 ========================
+    @Resource
+    private ToolCallback[] allTools;
+
+    @Resource
+    private SkillIntentClassifier skillIntentClassifier;
+
+    /**
+     * 使用动态技能选择的对话
+     * 解决 Token 爆炸问题：先识别意图，再只加载相关的技能 schema
+     *
+     * @param message 用户消息
+     * @param chatId 会话ID
+     * @return AI 回复
+     */
+    public String doChatWithSkills(String message, String chatId) {
+        // 1. 意图识别：判断用户需要哪个技能
+        List<SkillIntentClassifier.SkillIntent> intents = skillIntentClassifier.classifyIntent(message);
+        String primaryIntent = intents.isEmpty() ? "通用咨询" : intents.get(0).getName();
+
+        log.info("【LoveApp】意图识别结果: {} | 用户消息: {}", primaryIntent, message);
+
+        // 2. 根据意图获取相关的技能 ToolCallback（只加载相关的，减少 Token）
+        ToolCallback[] relevantTools = skillManager.getToolCallbacksByIntent(primaryIntent);
+
+        // 3. 如果没有匹配的技能，回退到普通对话
+        if (relevantTools.length == 0) {
+            log.warn("【LoveApp】没有匹配到相关技能，回退到普通对话模式");
+            return doChat(message, chatId);
+        }
+
+        log.info("【LoveApp】加载了 {} 个相关技能: {}", relevantTools.length,
+                Arrays.stream(relevantTools).map(t -> t.getToolDefinition().name()).collect(Collectors.toList()));
+
+        // 4. 使用动态选择的技能进行对话
+        return chatClient.prompt()
+                .user(message)
+                .advisors(spec -> spec
+                        .param(CHAT_MEMORY_CONVERSATION_ID_KEY, chatId)
+                        .param(CHAT_MEMORY_RETRIEVE_SIZE_KEY, 10)
+                )
+                .tools(relevantTools) // 🔥 只传相关的技能，减少 Token
+                .call()
+                .content();
+    }
+// ====================================================================
 }

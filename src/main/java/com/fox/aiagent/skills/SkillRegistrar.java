@@ -1,5 +1,8 @@
 package com.fox.aiagent.skills;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -12,20 +15,48 @@ import java.util.List;
 @Component
 public class SkillRegistrar {
 
+    private static final Logger logger = LoggerFactory.getLogger(SkillRegistrar.class);
+
     private final SkillManager skillManager;
+    private final ListableBeanFactory beanFactory;
 
     @Autowired
-    public SkillRegistrar(SkillManager skillManager) {
+    public SkillRegistrar(SkillManager skillManager, ListableBeanFactory beanFactory) {
         this.skillManager = skillManager;
+        this.beanFactory = beanFactory;
     }
 
     /**
      * 初始化时自动注册所有技能
+     * 通过Spring的BeanFactory自动发现所有实现了Skill接口的Bean
      */
     @PostConstruct
     public void registerSkills() {
-        // 在实际应用中，这里可以通过扫描@Component注解来自动发现技能
-        // 这里我们手动注册技能，或者通过Spring的自动装配机制
+        logger.info("【SkillRegistrar】开始自动注册技能...");
+
+        // 获取所有实现了 Skill 接口的 Bean（包括 @Component 和 @SkillComponent 注解的类）
+        final var skillBeans = beanFactory.getBeansOfType(Skill.class);
+        logger.info("【SkillRegistrar】发现 {} 个技能 Bean", skillBeans.size());
+
+        skillBeans.forEach((beanName, skill) -> {
+            try {
+                // 检查技能是否标记了 @SkillComponent 注解
+                Class<?> skillClass = skill.getClass();
+                boolean hasSkillAnnotation = skillClass.isAnnotationPresent(SkillComponent.class);
+
+                if (hasSkillAnnotation) {
+                    String skillName = skill.getName();
+                    logger.info("【SkillRegistrar】注册技能: {} (Bean: {})", skillName, beanName);
+                    skillManager.registerSkill(skill);
+                } else {
+                    logger.warn("【SkillRegistrar】跳过未标记 @SkillComponent 的 Bean: {} - {}", beanName, skillClass.getName());
+                }
+            } catch (Exception e) {
+                logger.error("【SkillRegistrar】注册技能失败: {} - {}", beanName, e.getMessage(), e);
+            }
+        });
+
+        logger.info("【SkillRegistrar】技能注册完成，当前已注册 {} 个技能", skillManager.getAllSkills().size());
     }
 
     /**

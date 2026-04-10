@@ -6,6 +6,7 @@ import org.springframework.ai.tool.definition.DefaultToolDefinition;
 import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.ai.tool.metadata.ToolMetadata;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +19,7 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Component
+@Primary
 public class SkillToolCallbackProvider implements ToolCallbackProvider {
 
     private final SkillManager skillManager;

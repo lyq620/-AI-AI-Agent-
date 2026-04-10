@@ -1,28 +1,33 @@
 package com.fox.aiagent.skills;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
-import java.util.Map;
-
-/**
- * 个性化约会计划生成技能
- * 根据用户偏好生成个性化的约会计划
- */
 @SkillComponent(
     name = "date_plan",
     description = "生成个性化的约会计划，根据用户偏好和需求定制约会方案"
 )
+// ✅ 修复：类名 = 文件名
+@Component
 public class DatePlanSkill implements Skill {
+
+    // ✅ 修复：添加日志对象（解决 log 找不到）
+    private static final Logger log = LoggerFactory.getLogger(DatePlanSkill.class);
 
     private final ChatClient chatClient;
 
     @Autowired
-    public DatePlanSkill(ChatClient chatClient) {
-        this.chatClient = chatClient;
+    public DatePlanSkill(ChatModel dashscopeChatModel) {
+        this.chatClient = ChatClient.create(dashscopeChatModel);
+        log.info("【DatePlanSkill】约会规划技能初始化完成");
     }
 
     @Override
@@ -37,18 +42,24 @@ public class DatePlanSkill implements Skill {
 
     @Override
     public String execute(Map<String, Object> parameters) {
-        // 获取参数
+        log.info("==================================================");
+        log.info("【DatePlanSkill】约会规划技能 已被调用！");
+        log.info("【DatePlanSkill】接收参数：{}", parameters);
+        log.info("==================================================");
+
         String userPreferences = (String) parameters.get("preferences");
         String budget = (String) parameters.get("budget");
         String location = (String) parameters.get("location");
         String dateType = (String) parameters.get("date_type");
 
         if (userPreferences == null || userPreferences.trim().isEmpty()) {
+            log.error("【DatePlanSkill】参数校验失败：preferences 参数不能为空");
             throw new SkillException("Preferences parameter is required");
         }
 
         try {
-            // 构建提示词
+            log.info("【DatePlanSkill】开始生成约会计划，用户偏好：{}", userPreferences);
+
             StringBuilder prompt = new StringBuilder();
             prompt.append("请为用户生成一个个性化的约会计划。");
             prompt.append("用户偏好：").append(userPreferences).append("。");
@@ -72,15 +83,18 @@ public class DatePlanSkill implements Skill {
             prompt.append("4. 预算分配建议");
             prompt.append("5. 注意事项和温馨提示");
 
-            // 调用AI生成约会计划
             ChatResponse response = chatClient
                 .prompt()
                 .user(prompt.toString())
                 .call()
                 .chatResponse();
 
-            return response.getResult().getOutput().getText();
+            String result = response.getResult().getOutput().getText();
+            log.info("【DatePlanSkill】约会计划生成完成，执行成功");
+            return result;
+
         } catch (Exception e) {
+            log.error("【DatePlanSkill】执行异常：{}", e.getMessage(), e);
             throw new SkillException("Failed to generate date plan: " + e.getMessage(), e);
         }
     }

@@ -1,28 +1,34 @@
 package com.fox.aiagent.skills;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
-import java.util.Map;
-
-/**
- * 约会预算智能拆分技能
- * 根据约会类型和预算范围智能拆分各项费用
- */
 @SkillComponent(
     name = "date_budget",
     description = "智能拆分约会预算，根据约会类型和预算范围提供详细的费用分配建议"
 )
+// ✅ 修复：类名 = 文件名
+@Component
 public class DateBudgetSkill implements Skill {
+
+    // ✅ 修复：添加日志对象（解决 log 找不到）
+    private static final Logger log = LoggerFactory.getLogger(DateBudgetSkill.class);
 
     private final ChatClient chatClient;
 
     @Autowired
-    public DateBudgetSkill(ChatClient chatClient) {
-        this.chatClient = chatClient;
+    public DateBudgetSkill(ChatModel dashscopeChatModel) {
+        this.chatClient = ChatClient.create(dashscopeChatModel);
+        log.info("【DateBudgetSkill】约会预算技能初始化完成");
     }
 
     @Override
@@ -37,17 +43,23 @@ public class DateBudgetSkill implements Skill {
 
     @Override
     public String execute(Map<String, Object> parameters) {
-        // 获取参数
+        log.info("==================================================");
+        log.info("【DateBudgetSkill】预算拆分技能 已被调用！");
+        log.info("【DateBudgetSkill】接收参数：{}", parameters);
+        log.info("==================================================");
+
         String totalBudget = (String) parameters.get("total_budget");
         String dateType = (String) parameters.get("date_type");
         String location = (String) parameters.get("location");
 
         if (totalBudget == null || totalBudget.trim().isEmpty()) {
+            log.error("【DateBudgetSkill】参数校验失败：total_budget 参数不能为空");
             throw new SkillException("Total budget parameter is required");
         }
 
         try {
-            // 构建提示词
+            log.info("【DateBudgetSkill】开始生成预算分配方案，总预算：{}", totalBudget);
+
             StringBuilder prompt = new StringBuilder();
             prompt.append("请为用户制定约会预算分配方案。");
             prompt.append("总预算：").append(totalBudget).append("元。");
@@ -69,15 +81,18 @@ public class DateBudgetSkill implements Skill {
             prompt.append("6. 各项费用的具体金额和占比");
             prompt.append("7. 节省预算的建议");
 
-            // 调用AI生成预算分配方案
             ChatResponse response = chatClient
                 .prompt()
                 .user(prompt.toString())
                 .call()
                 .chatResponse();
 
-            return response.getResult().getOutput().getText();
+            String result = response.getResult().getOutput().getText();
+            log.info("【DateBudgetSkill】预算方案生成完成，执行成功");
+            return result;
+
         } catch (Exception e) {
+            log.error("【DateBudgetSkill】执行异常：{}", e.getMessage(), e);
             throw new SkillException("Failed to generate budget plan: " + e.getMessage(), e);
         }
     }
